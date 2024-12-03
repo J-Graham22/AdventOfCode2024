@@ -11,17 +11,14 @@ pub fn main() !void {
 
     // const hasMatch = mulRegex.match(test_string);
     // std.debug.print("contains match {}\n", .{hasMatch});
+    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    defer _ = gpa.deinit();
+    const allocator = gpa.allocator();
 
-    var file = try std.fs.cwd().openFile("src/input.txt", .{});
-    defer file.close();
+    const file = try std.fs.cwd().readFileAlloc(allocator, "src/input.txt", 1024 * 1024);
+    defer allocator.free(file);
 
-    var buffReader = std.io.bufferedReader(file.reader());
-    var inStream = buffReader.reader();
-
-    var buf: [1024]u8 = undefined;
-    while (try inStream.readUntilDelimiterOrEof(&buf, '\n')) |line| {
-        std.debug.print("line = {s}\n", .{line});
-    }
+    std.debug.print("content = {s}\n", .{file});
 
     // stdout is for the actual output of your application, for example if you
     // are implementing gzip, then only the compressed bytes should be sent to
