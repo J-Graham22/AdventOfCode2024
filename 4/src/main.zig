@@ -1,89 +1,5 @@
 const std = @import("std");
 
-const Position: type = struct { i32, i32 };
-
-const XPositions = struct {
-    positions: std.ArrayList([5]Position),
-
-    pub fn init(allocator: std.mem.Allocator) XPositions {
-        return .{
-            .positions = std.ArrayList([5]Position).init(allocator),
-        };
-    }
-
-    pub fn deinit(self: *XPositions) void {
-        self.positions.deinit();
-    }
-
-    // pub fn checkForExistingX(self: *XPositions, positions: [5]Position) bool {
-    //     for (self.*.positions.items) |item| {
-    //         //if (self.*.positions.items.len < 5) std.debug.print("number of Xes {d}\n", .{self.*.positions.items.len});
-    //         //if the all items in positions can be found in item, then the X has been found already
-    //         //if not, then it does not exist
-    //         var foundPositions: bool = true;
-
-    //         for (positions) |pos| {
-    //             //check for the pos existing within the list of points
-    //             var pointFound: bool = false;
-    //             for (item) |point| {
-    //                 if (pos[0] == point[0] and pos[1] == point[1]) {
-    //                     //if (pos[0] < 2) std.debug.print("pos {d},{d} point {d},{d}\n", .{ pos[0], pos[1], point[0], point[1] });
-    //                     pointFound = true;
-    //                     break;
-    //                 }
-    //             }
-    //             if (!pointFound) {
-    //                 //if (pos[0] < 3) std.debug.print("pos {d},{d} not found, setting foundPositions to false\n", .{ pos[0], pos[1] });
-    //                 foundPositions = false;
-    //             }
-    //         }
-
-    //         if (self.*.positions.items.len < 5) std.debug.print("foundPositions {}\n", .{foundPositions});
-
-    //         if (foundPositions) return true;
-    //     }
-    //     return false;
-    // }
-
-    pub fn checkForExistingX(self: *XPositions, positions: [5]Position) bool {
-        for (self.positions.items) |existing| {
-            var matchCount: u8 = 0;
-
-            // Count how many positions match between existing and new X
-            for (existing) |existingPos| {
-                for (positions) |newPos| {
-                    if (existingPos[0] == newPos[0] and existingPos[1] == newPos[1]) {
-                        matchCount += 1;
-                        break;
-                    }
-                }
-            }
-
-            // If all 5 positions match, we found a duplicate X
-            if (matchCount == 5) return true;
-        }
-        return false;
-    }
-
-    pub fn toString(self: *XPositions) ![]u8 {
-        const allocator = std.mem.Allocator;
-        var result = std.ArrayList(u8).init(allocator);
-        errdefer result.deinit();
-
-        try result.appendSlice("Positions: ");
-
-        for (self.positions.items, 0..) |pos, i| {
-            try result.writer().print("X{d}: ", .{i + 1});
-            for (pos) |p| {
-                try result.writer().print("({d},{d}) ", .{ p[0], p[1] });
-            }
-            try result.appendSlice("\n");
-        }
-
-        return result.toOwnedSlice();
-    }
-};
-
 pub fn main() !void {
     // Prints to stderr (it's a shortcut based on `std.io.getStdErr()`)
     std.debug.print("All your {s} are belong to us.\n", .{"codebase"});
@@ -104,14 +20,13 @@ pub fn main() !void {
         try crossWord.append(copy);
     }
 
-    var positions: XPositions = XPositions.init(allocator);
-
     //var xmasCount: i32 = 0;
     var x_masCount: i32 = 0;
     for (0..crossWord.items.len) |i| {
         for (0..crossWord.items[0].len) |j| {
             //xmasCount += xmasCheck(crossWord, @intCast(i), @intCast(j));
-            x_masCount += X_masCheck(crossWord, @intCast(i), @intCast(j), &positions);
+            //x_masCount += X_masCheck(crossWord, @intCast(i), @intCast(j));
+            if (X_masCheck(crossWord, @intCast(i), @intCast(j))) x_masCount += 1;
         }
         //std.debug.print("\n", .{});
     }
@@ -173,52 +88,52 @@ pub fn xmasCheckDirection(crossWord: std.ArrayList([]u8), col: i32, row: i32, iI
     return true;
 }
 
-pub fn X_masCheck(crossWord: std.ArrayList([]u8), i: i32, j: i32, positions: *XPositions) i32 {
-    var xmasCount: i32 = 0;
+pub fn X_masCheck(crossWord: std.ArrayList([]u8), i: i32, j: i32) bool {
+    if (crossWord.items[@intCast(i)][@intCast(j)] != 'A') return false;
 
-    //north west
-    if (x_masCheckDirection(crossWord, i, j, -1, -1, positions)) xmasCount += 1;
-    //north east
-    if (x_masCheckDirection(crossWord, i, j, 1, -1, positions)) xmasCount += 1;
-    //south west
-    if (x_masCheckDirection(crossWord, i, j, -1, 1, positions)) xmasCount += 1;
-    //south east
-    if (x_masCheckDirection(crossWord, i, j, 1, 1, positions)) xmasCount += 1;
+    //check if the corners are within the bounds of the cross word
+    if (i + 1 >= crossWord.items.len or
+        i - 1 < 0 or
+        j + 1 >= crossWord.items[0].len or
+        j - 1 < 0) return false;
 
-    if (xmasCount > 0 and i < 10) std.debug.print("position {d},{d} xmas count {d}\n", .{ i, j, xmasCount });
+    //check all 4 kinds of Xes
 
-    return xmasCount;
-}
+    //M . M
+    //. A .
+    //S . S
+    if (crossWord.items[@intCast(i - 1)][@intCast(j - 1)] == 'M' and //top left
+        crossWord.items[@intCast(i - 1)][@intCast(j + 1)] == 'M' and //top right
+        crossWord.items[@intCast(i + 1)][@intCast(j - 1)] == 'S' and //bottom left
+        crossWord.items[@intCast(i + 1)][@intCast(j + 1)] == 'S' //bottom right
+    ) return true;
 
-pub fn x_masCheckDirection(crossWord: std.ArrayList([]u8), col: i32, row: i32, iIncrementValue: i32, jIncrementValue: i32, positions: *XPositions) bool {
-    //first check that the MAS exists in the intended direction
-    if (!checkForMAS(crossWord, col, row, iIncrementValue, jIncrementValue)) return false;
+    //M . S
+    //. A .
+    //M . S
+    if (crossWord.items[@intCast(i - 1)][@intCast(j - 1)] == 'M' and //top left
+        crossWord.items[@intCast(i - 1)][@intCast(j + 1)] == 'S' and //top right
+        crossWord.items[@intCast(i + 1)][@intCast(j - 1)] == 'M' and //bottom left
+        crossWord.items[@intCast(i + 1)][@intCast(j + 1)] == 'S' //bottom right
+    ) return true;
 
-    //then need to check the 2 remaining corners to see if they make a MAS
-    const corner1 = crossWord.items[@intCast(col + (iIncrementValue * 2))][@intCast(row)];
-    const corner2 = crossWord.items[@intCast(col)][@intCast(row + (jIncrementValue * 2))];
-    if ((corner1 == 'M' and corner2 == 'S') or corner1 == 'S' and corner2 == 'M') {
-        const points: [5]Position = .{
-            .{ col, row },
-            .{ col + iIncrementValue, row + jIncrementValue },
-            .{ col + (iIncrementValue * 2), row + (jIncrementValue * 2) },
-            .{ col + (iIncrementValue * 2), row },
-            .{ col, row + (jIncrementValue * 2) },
-        };
+    //S . S
+    //. A .
+    //M . M
+    if (crossWord.items[@intCast(i - 1)][@intCast(j - 1)] == 'S' and //top left
+        crossWord.items[@intCast(i - 1)][@intCast(j + 1)] == 'S' and //top right
+        crossWord.items[@intCast(i + 1)][@intCast(j - 1)] == 'M' and //bottom left
+        crossWord.items[@intCast(i + 1)][@intCast(j + 1)] == 'M' //bottom right
+    ) return true;
 
-        if (!positions.checkForExistingX(points)) {
-            positions.positions.append(points) catch {
-                return false;
-            };
-        } else {
-            //std.debug.print("X MAS found, but already found before\n", .{});
-        }
-    }
-
-    // if (checkForMAS(crossWord, col + (iIncrementValue * 2), row, iIncrementValue, jIncrementValue) or
-    //     checkForMAS(crossWord, col, row + (jIncrementValue * 2), iIncrementValue, jIncrementValue)) return true;
-
-    // if (col < 50) std.debug.print("found first MAS, but didn't complete the X: pos {d},{d}\n", .{ col, row });
+    //S . M
+    //. A .
+    //S . M
+    if (crossWord.items[@intCast(i - 1)][@intCast(j - 1)] == 'S' and //top left
+        crossWord.items[@intCast(i - 1)][@intCast(j + 1)] == 'M' and //top right
+        crossWord.items[@intCast(i + 1)][@intCast(j - 1)] == 'S' and //bottom left
+        crossWord.items[@intCast(i + 1)][@intCast(j + 1)] == 'M' //bottom right
+    ) return true;
 
     return false;
 }
